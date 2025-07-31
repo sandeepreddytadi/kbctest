@@ -469,7 +469,7 @@
     window.addEventListener('keydown', (e) => {
       const key = e.key.toLowerCase();
       // 's' to start the game
-      if (key === 's' && document.getElementById("welcome-screen").style.display === "flex") {
+      if (key === 's' && document.getElementById("welcome-screen").style.display === "none") {
         startGame();
         return;
       }
