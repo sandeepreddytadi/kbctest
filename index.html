@@ -467,68 +467,69 @@
 
 
     window.addEventListener('keydown', (e) => {
-      const key = e.key.toLowerCase();
-      // 's' to start the game
-      if (key === 's' && document.getElementById("welcome-screen").style.display === "none") {
-        startGame();
-        return;
-      }
-      
-      // 'q' to quit the game
-      if (key === 'q' && quizActive) {
-        quitGame();
-        return;
-      }
-      
-      // 'a', 'b', 'c', 'd' to select an option
-      if (quizActive && !waitingForNext && !waitingForDoll) {
-        let optionIndex = -1;
-        if (key === 'a') optionIndex = 0;
-        else if (key === 'b') optionIndex = 1;
-        else if (key === 'c') optionIndex = 2;
-        else if (key === 'd') optionIndex = 3;
+  const key = e.key.toLowerCase();
+  
+  // Start the game with the 's' key only if the welcome screen is currently displayed.
+  // The display property might be an empty string if it's not set, so checking for it
+  // not being 'none' is the most reliable method.
+  if (key === 's' && document.getElementById("welcome-screen").style.display !== "none") {
+    startGame();
+    return;
+  }
+  
+  // All other keypress logic follows
+  // ...
+  if (key === 'q' && quizActive) {
+    quitGame();
+    return;
+  }
+  
+  if (quizActive && !waitingForNext && !waitingForDoll) {
+    let optionIndex = -1;
+    if (key === 'a') optionIndex = 0;
+    else if (key === 'b') optionIndex = 1;
+    else if (key === 'c') optionIndex = 2;
+    else if (key === 'd') optionIndex = 3;
 
-        if (optionIndex !== -1) {
-          handleAnswer(optionIndex);
-          return;
+    if (optionIndex !== -1) {
+      handleAnswer(optionIndex);
+      return;
+    }
+  }
+  
+  if (key === 'n') {
+    if (!quizActive && introOver) {
+      introOver = false;
+      initializeGameForQuestion();
+    } else if (waitingForNext) {
+      if (currentIndex + 1 >= questions.length) {
+        // All questions completed
+        quizActive = false;
+        waitingForNext = false;
+        questionEl.textContent = "Successfully Completed Quiz. Thank you for Participating!";
+        optionsEl.innerHTML = "";
+        timerEl.textContent = "";
+      } else {
+        waitingForNext = false;
+        currentIndex++;
+        questionEl.textContent = "Loading...";
+        optionsEl.innerHTML = "";
+        timerEl.textContent = "";
+        if (window.dollController) {
+          window.dollController.playAction1();
         }
+        waitingForDoll = true;
       }
-      
-      // 'n' key logic remains the same
-      if (key === 'n') {
-        if (!quizActive && introOver) {
-          introOver = false;
-          initializeGameForQuestion();
-        } else if (waitingForNext) {
-          if (currentIndex + 1 >= questions.length) {
-            // All questions completed
-            quizActive = false;
-            waitingForNext = false;
-            questionEl.textContent = "Successfully Completed Quiz. Thank you for Participating!";
-            optionsEl.innerHTML = "";
-            timerEl.textContent = "";
-          } else {
-            waitingForNext = false;
-            currentIndex++;
-            questionEl.textContent = "Loading...";
-            optionsEl.innerHTML = "";
-            timerEl.textContent = "";
-            if (window.dollController) {
-              window.dollController.playAction1();
-            }
-            waitingForDoll = true;
-          }
-        }
-      }
-      
-      // 'r' key logic remains the same
-      if (key === 'r' && window.dollController && window.dollController.getState() === 'waiting') {
-        window.dollController.playAction2();
-        if (window.gameController) {
-          window.gameController.showDollSeeingMessage();
-        }
-      }
-    });
+    }
+  }
+  
+  if (key === 'r' && window.dollController && window.dollController.getState() === 'waiting') {
+    window.dollController.playAction2();
+    if (window.gameController) {
+      window.gameController.showDollSeeingMessage();
+    }
+  }
+});
 
 
     window.addEventListener('touchend', (e) => {
