@@ -346,6 +346,8 @@ scene.add(hemiLight);
       if (mixer) mixer.update(delta);
       renderer.render(scene, camera);
     }
+
+    window.startGame = startGame;
   </script>
 
   <div class="quiz-container-wrapper">
@@ -451,8 +453,6 @@ scene.add(hemiLight);
         }
         waitingForDoll = true;
     };
-
-    window.startGame = startGame;
     
 function startGame() {
   document.getElementById("welcome-screen").style.display = "none";
