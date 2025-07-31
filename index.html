@@ -346,8 +346,6 @@ scene.add(hemiLight);
       if (mixer) mixer.update(delta);
       renderer.render(scene, camera);
     }
-
-    window.startGame = startGame;
   </script>
 
   <div class="quiz-container-wrapper">
@@ -657,6 +655,9 @@ soundDollIdleLoop.currentTime = 0;
         }
       }
     });
+
+    
+    window.startGame = startGame;
   </script>
 </body>
 <html>
