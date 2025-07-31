@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>KBC + GLB Model Background</title>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron&display=swap" rel="stylesheet">
+  <style>
+    body { margin: 0; overflow: hidden; font-family: 'Orbitron', sans-serif; }
+
+    canvas { display: block; position: absolute; top: 0; left: 0; z-index: 0; }
+
+    .quiz-container-wrapper {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 70%;
+      height: 100%;
+      background: transparent;
+      padding: 30px 20px;
+      z-index: 10;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      overflow-y: auto;
+    }
+
+    .container {
+      display: none;
+      flex-direction: row;
+      width: 95%;
+      max-width: 1200px;
+      gap: 20px;
+    }
+
+    .welcome-screen {
+      text-align: center;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 20px;
+      color: #fff;
+    }
+
+    .welcome-logo {
+      font-size: 2em;
+      color: gold;
+    }
+
+    .welcome-image {
+  max-width: 100%;
+  height: auto;
+}
+
+    .start-btn {
+      background-color: gold;
+      color: black;
+      font-size: 1.2em;
+      font-weight: bold;
+      padding: 12px 24px;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background-color 0.3s ease;
+    }
+
+    .start-btn:hover {
+      background-color: #ffd700;
+    }
+
+    .game-container {
+      background-color: rgba(0,0,0,0.6);
+      border-radius: 10px;
+      padding: 20px;
+      flex: 2;
+      box-shadow: 0 0 20px #ffd700;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      color: #fff;
+    }
+
+    /* Removed progress-bar-container and progress-bar styles */
+
+    .question {
+      font-size: 1.5em;
+      padding: 15px;
+      margin-bottom: 20px;
+      border: 2px solid gold;
+      border-radius: 8px;
+      background-color: #002b5c;
+      color: silver;
+    }
+
+    .options {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 15px;
+      margin-bottom: 20px;
+    }
+
+    .option-btn {
+      background-color: #004080;
+      color: #ffffff;
+      border: 2px solid gold;
+      padding: 15px;
+      padding: 12px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+      transition: 0.3s;
+    }
+
+    .option-btn:hover {
+      background-color: #0059b3;
+    }
+
+    .option-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+ .actions {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+    }
+
+ .action-btn {
+      background-color: gold;
+      color: black;
+      font-weight: bold;
+      border: none;
+      border-radius: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      flex: 1;
+      transition: background-color 0.3s ease;
+    }
+
+ .action-btn:hover {
+      background-color: #ffd700;
+    }
+
+    .top-bar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+      font-size: 1.2em;
+      color: #ffd700;
+    }
+
+    .final-congrats {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      color: gold;
+      padding: 20px;
+    }
+
+    .final-badge {
+      font-size: 1.5em;
+      font-weight: bold;
+      background-color: gold;
+      color: black;
+      padding: 15px 30px;
+      border-radius: 12px;
+      border: 3px solid white;
+      margin-top: 20px;
+    }
+
+    .instructions {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      color: #ffd700;
+      font-size: 0.9em;
+      z-index: 20;
+    }
+  </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.154.0/build/three.module.js",
+        "GLTFLoader": "https://unpkg.com/three@0.154.0/examples/jsm/loaders/GLTFLoader.js",
+        "OrbitControls": "https://unpkg.com/three@0.154.0/examples/jsm/controls/OrbitControls.js"
+      }
+    }
+  </script>
+</head>
+<body>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { TextureLoader } from 'three';
+    import { GLTFLoader } from 'GLTFLoader';
+    import { OrbitControls } from 'OrbitControls';
+
+    let scene, camera, renderer, mixer, clock;
+    let waitingForNext = false;
+    let action1, action2;
+    let dollAnimationState = 'idle'; // idle, animating, waiting
+
+    window.dollController = {
+      playAction1: function() {
+        if (!mixer || !action1 || dollAnimationState === 'animating') return;
+        dollAnimationState = 'animating';
+        if (action2) action2.stop();
+        action1.reset();
+        action1.setLoop(THREE.LoopOnce);
+        action1.clampWhenFinished = true;
+        action1.play();
+        // Play green light sound
+        if (window.soundGreenLight) {
+          window.soundGreenLight.currentTime = 0;
+          window.soundGreenLight.play().catch(() => {});
+        }
+        // Listen for animation completion
+        mixer.addEventListener('finished', function onFinished(e) {
+          if (e.action === action1) {
+  dollAnimationState = 'waiting';
+  mixer.removeEventListener('finished', onFinished);
+  // Start looping idle sound
+  if (window.soundDollIdleLoop) {
+    window.soundDollIdleLoop.currentTime = 0;
+    window.soundDollIdleLoop.play().catch(() => {});
+  }
+}
+        });
+      },
+      playAction2: function() {
+        if (!mixer || !action2 || dollAnimationState === 'animating') return;
+        dollAnimationState = 'animating';
+        if (action1) action1.stop();
+        action2.reset();
+        action2.setLoop(THREE.LoopOnce);
+        action2.clampWhenFinished = true;
+        action2.play();
+        // Stop idle loop sound before red light
+if (window.soundDollIdleLoop) {
+  window.soundDollIdleLoop.pause();
+  window.soundDollIdleLoop.currentTime = 0;
+}
+        // Play red light sound
+        if (window.soundRedLight) {
+          window.soundRedLight.currentTime = 0;
+          window.soundRedLight.play().catch(() => {});
+        }
+        // Listen for animation completion
+        mixer.addEventListener('finished', function onFinished(e) {
+          if (e.action === action2) {
+            dollAnimationState = 'idle';
+            mixer.removeEventListener('finished', onFinished);
+            // Trigger question load after 3 seconds
+            setTimeout(() => {
+              if (window.gameController) {
+                window.gameController.loadQuestionAfterDoll();
+              }
+            }, 3000);
+          }
+        });
+      },
+      getState: function() {
+        return dollAnimationState;
+      }
+    };
+
+    init();
+    animate();
+
+    function init() {
+      clock = new THREE.Clock();
+      scene = new THREE.Scene();
+      // Set background color 
+      scene.background = new THREE.Color(0x000000);
+      
+      camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000);
+      camera.position.set(0, 5, 20);
+
+      renderer = new THREE.WebGLRenderer({ antialias: true });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.body.appendChild(renderer.domElement);
+
+      const controls = new OrbitControls(camera, renderer.domElement);
+      controls.target.set(0, 5, 0);
+      controls.update();
+
+     // Soft ambient light for general illumination
+const ambientLight = new THREE.AmbientLight(0xffffff, 0.2);
+scene.add(ambientLight);
+
+// Main front-facing directional light (perfectly centered)
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(10, 0, 0); // straight in front of doll
+directionalLight.target.position.set(0, 0, 0); // center of scene (doll)
+scene.add(directionalLight);
+scene.add(directionalLight.target);
+
+// Optional: Hemisphere for smoother overall look
+const hemiLight = new THREE.HemisphereLight(0xffffff, 0x333333, 0.2);
+scene.add(hemiLight);
+
+
+      const loader = new GLTFLoader();
+      loader.load('doll.glb', function (gltf) {
+        const model = gltf.scene;
+        scene.add(model);
+
+        const exportedCameras = gltf.cameras;
+        if (exportedCameras && exportedCameras.length > 0) {
+          camera = exportedCameras[0];
+        }
+
+        mixer = new THREE.AnimationMixer(model);
+        const animations = gltf.animations;
+
+        action1 = mixer.clipAction(animations.find(a => a.name === "o to 18o degree"));
+        action2 = mixer.clipAction(animations.find(a => a.name === "18o to o degree"));
+      }, undefined, function (error) {
+        console.log('GLB file not found, continuing without 3D model');
+      });
+
+      window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+      window.addEventListener('keydown', (event) => {
+        if (!mixer || !action1 || !action2) return;
+        if (event.key.toLowerCase() === 'r' && dollAnimationState === 'waiting') {
+          window.dollController.playAction2();
+          if (window.gameController) {
+            window.gameController.showDollSeeingMessage();
+          }
+        }
+      });
+    }
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      if (mixer) mixer.update(delta);
+      renderer.render(scene, camera);
+    }
+  </script>
+
+  <div class="quiz-container-wrapper">
+    <div class="welcome-screen" id="welcome-screen">
+      <div class="welcome-logo"> AI'ce breaker event - Giggles Galore</div>
+      <img src="welcome.png" alt="Welcome Image" class="welcome-image">
+      <button class="start-btn" onclick="startGame()">Start Game</button>
+    </div>
+
+    <div class="container" id="game-container">
+      <div class="game-container">
+        <div class="top-bar">
+          <div id="timer">⏱️ 30s</div>
+        </div>
+        <div class="question" id="question">Loading...</div>
+        <div class="options" id="options"></div>
+        <div class="actions">
+          <button class="action-btn" onclick="restartGame()">Restart</button>
+          <button class="action-btn" onclick="quitGame()">Quit</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <audio id="soundQuestion" src="https://actions.google.com/sounds/v1/cartoon/wood_plank_flicks.ogg" preload="auto"></audio>
+  <audio id="soundCorrect" src="https://actions.google.com/sounds/v1/cartoon/clang_and_wobble.ogg" preload="auto"></audio>
+  <audio id="soundWrong" src="audio/squid-game-gunshot.mp3" preload="auto"></audio>
+  <audio id="soundGreenLight" src="audio/doll-green-light.mp3" preload="auto"></audio>
+  <audio id="soundRedLight" src="audio/doll-red-light.mp3" preload="auto"></audio>
+  <audio id="soundIntro" src="audio/squid-game-rules.mp3" preload="auto"></audio>
+  <audio id="soundDollIdleLoop" src="audio/squid-game.mp3" preload="auto" loop></audio>
+
+  <script>
+    const allQuestions = [
+  { q: "What does GPT stand for?", a: ["Global Processing Tool", "Generative Pre trained Transformer", "General Purpose Technology", "Graphic Programming Template"], c: 1 },
+
+  { q: "What should organization consider before implementing AI?", a: ["Ethics, privacy and accuracy", "Only the cost savings", "Only the speed improvements", "Only employee reactions"], c: 0 },
+
+  { q: "What is neural network inspired by?", a: ["The human brain", "Telephone networks", "Road systems", "Computer Circuits"], c: 0 },
+
+  { q: "What is 'Deep Learning' a subset of?", a: ["Expert Systems", "Machine Vision", "Robotics", "Machine Learning"], c: 3 },
+
+  { q: "Which company developed GPT-4?", a: ["Meta", "Google", "IBM", "OpenAI"], c: 3 },
+
+  { q: "What does AI stand for?", a: ["Analog Input", "Artificial Intelligence", "Automated Input", "Advanced Interface"], c: 1 },
+
+  { q: "NLP stands for?", a: ["None", "Net Language Python", "Natural Language Processing", "Neural LP"], c: 2 },
+
+  { q: "What type of content can Generative AI create?", a: ["Only Images", "Only Texts", "Only computer programs", "Texts, Images, Music and Code"], c: 3 },
+
+  { q: "What does 'LLM' stand for in AI?", a: ["Large Learning Machine", "Large Learning Model", "Large Language Model", "Large Language Module"], c: 2 },
+
+  { q: "GAN stands for?", a: ["Generative Adversarial Network", "Generic AI Node", "Graphical AI Network", "General Adv Network"], c: 0 }
+];
+
+    let questions, currentIndex = 0, timer, timeLeft = 30;
+    let waitingForNext = false;
+    let quizActive = false;
+    let waitingForDoll = false;
+    let introOver = false;
+
+    const questionEl = document.getElementById("question");
+    const optionsEl = document.getElementById("options");
+    const timerEl = document.getElementById("timer");
+    const soundCorrect = document.getElementById("soundCorrect");
+    const soundWrong = document.getElementById("soundWrong");
+    const soundQuestion = document.getElementById("soundQuestion");
+    const soundIntro = document.getElementById("soundIntro");
+
+    window.gameController = {
+      showDollSeeingMessage: function() {
+        questionEl.textContent = "🔍 Doll is Watching...";
+        optionsEl.innerHTML = "";
+        clearInterval(timer);
+        timerEl.textContent = "";
+      },
+
+      loadQuestionAfterDoll: function() {
+        if (waitingForDoll) {
+          waitingForDoll = false;
+          loadQuestion();
+        }
+      }
+    };
+
+    // Define a function to initialize game state and start doll animation for the first question
+    const initializeGameForQuestion = () => {
+        // Reset game state for a new round of questions
+        questions = [...allQuestions];
+        currentIndex = 0;
+        quizActive = true;
+        waitingForDoll = false; // Reset this state
+
+        // Clear any active timers from a previous game
+        clearInterval(timer);
+        timerEl.textContent = ""; // Clear timer display
+
+        // Start the doll animation (which includes green light sound)
+        questionEl.textContent = "Loading..."; // Displays "Loading..." before doll turns
+        optionsEl.innerHTML = "";
+        if (window.dollController) {
+            window.dollController.playAction1();
+        }
+        waitingForDoll = true;
+    };
+
+function startGame() {
+  document.getElementById("welcome-screen").style.display = "none";
+  document.getElementById("game-container").style.display = "flex";
+
+  // Show rules text only — no audio
+  questionEl.textContent = "🔊 Rules...";
+  optionsEl.innerHTML = "";
+
+  introOver = true;
+}
+
+    
+window.addEventListener('keydown', (event) => {
+  if (!quizActive && introOver && event.key.toLowerCase() === 'n') {
+    introOver = false;
+    initializeGameForQuestion();
+    return;
+  }
+
+  if (waitingForNext && event.key.toLowerCase() === 'n') {
+    if (currentIndex + 1 >= questions.length) {
+      quizActive = false;
+      waitingForNext = false;
+      questionEl.textContent = "Successfully Completed Quiz. Thank you for Participating!";
+      optionsEl.innerHTML = "";
+      timerEl.textContent = "";
+    } else {
+      waitingForNext = false;
+      currentIndex++;
+      questionEl.textContent = "Loading...";
+      optionsEl.innerHTML = "";
+      timerEl.textContent = "";
+      if (window.dollController) {
+        window.dollController.playAction1();
+      }
+      waitingForDoll = true;
+    }
+    return;
+  }
+
+  const key = event.key.toLowerCase();
+
+  if (quizActive && !waitingForNext && !waitingForDoll) {
+    if (['a', 'b', 'c', 'd'].includes(key)) {
+      const index = ['a', 'b', 'c', 'd'].indexOf(key);
+      handleAnswer(index);
+    }
+  }
+
+  if (key === 'q') {
+    quitGame();
+  }
+
+  if (key === 'r' && dollAnimationState === 'waiting') {
+    window.dollController.playAction2();
+    if (window.gameController) {
+      window.gameController.showDollSeeingMessage();
+    }
+  }
+});
+
+
+    window.addEventListener('touchend', (e) => {
+  const tappedElement = e.target;
+
+  // Start quiz on tap of canvas (only if introOver is true)
+  if (introOver && tappedElement.tagName.toLowerCase() === 'canvas') {
+    introOver = false;
+    initializeGameForQuestion();
+    return;
+  }
+
+  // Advance to next question on tap outside canvas
+  if (waitingForNext && tappedElement.tagName.toLowerCase() !== 'canvas') {
+    if (currentIndex + 1 >= questions.length) {
+      // All questions completed
+      quizActive = false;
+      waitingForNext = false;
+      questionEl.textContent = "Successfully Completed Quiz. Thank you for Participating!";
+      optionsEl.innerHTML = "";
+      timerEl.textContent = "";
+    } else {
+      waitingForNext = false;
+      currentIndex++;
+      questionEl.textContent = "Loading...";
+      optionsEl.innerHTML = "";
+      timerEl.textContent = "";
+      if (window.dollController) {
+        window.dollController.playAction1();
+      }
+      waitingForDoll = true;
+    }
+  }
+});
+
+
+
+    // Removed updateProgress() function as progress bar is removed
+
+    function loadQuestion() {
+      clearInterval(timer);
+
+      // If we've exhausted all unique questions, reset currentIndex to 0 to loop
+      if (currentIndex >= questions.length) {
+        currentIndex = 0; // Loop back to the first question
+        // Optionally, reshuffle here if you want a new random order after a full cycle
+        // questions = [...allQuestions].sort(() => 0.5 - Math.random());
+      }
+
+      const q = questions[currentIndex];
+      timeLeft = 30;
+      updateTimer();
+      timer = setInterval(() => {
+        timeLeft--;
+        updateTimer();
+        if (timeLeft <= 0) endGame("⏱️ Time's up!"); // Still ends game on time out
+      }, 1000);
+
+      questionEl.textContent = q.q;
+      optionsEl.innerHTML = "";
+
+      soundQuestion.currentTime = 0;
+      soundQuestion.play().catch(() => {});
+
+      q.a.forEach((option, i) => {
+        const btn = document.createElement("button");
+        btn.className = "option-btn";
+        btn.textContent = option;
+        btn.onclick = () => handleAnswer(i);
+        optionsEl.appendChild(btn);
+      });
+    }
+
+    function handleAnswer(i) {
+      clearInterval(timer);
+      const correct = questions[currentIndex].c;
+      const btns = optionsEl.querySelectorAll("button");
+      btns.forEach((btn, index) => {
+        btn.disabled = true;
+        if (index === correct) {
+          btn.style.backgroundColor = "#28a745";
+        } else if (index === i) {
+          btn.style.backgroundColor = "#dc3545";
+        }
+      });
+
+      if (i === correct) {
+        soundCorrect.currentTime = 0;
+        soundCorrect.play().catch(() => {});
+      } else {
+        soundWrong.currentTime = 0;
+        soundWrong.play().catch(() => {});
+      }
+      // Set flag to wait for 'N' key
+      waitingForNext = true;
+    }
+
+    function updateTimer() {
+      timerEl.textContent = ⏱️ ${timeLeft}s;
+    }
+
+    function endGame(msg) {
+      clearInterval(timer);
+      timerEl.textContent = msg;
+      quizActive = false;
+      waitingForDoll = false;
+    }
+
+const soundDollIdleLoop = document.getElementById('soundDollIdleLoop');
+    // restartGame function now simply calls initializeGameForQuestion
+    // It should ONLY be called by the "Restart" button.
+
+    function restartGame() {
+soundDollIdleLoop.pause();
+soundDollIdleLoop.currentTime = 0;
+        // This will set up the game questions, reset state, and start the doll.
+        // It does NOT replay the intro sound.
+        initializeGameForQuestion();
+    }
+    function quitGame() {
+soundDollIdleLoop.pause();
+soundDollIdleLoop.currentTime = 0;
+      if (window.dollController.getState() === 'waiting') {
+  window.dollController.playAction2(); // Play 180 to 0 only if currently at 180
+}   
+  clearInterval(timer);
+  questionEl.textContent = "You quit the game.";
+  optionsEl.innerHTML = "";
+  timerEl.textContent = "";
+  quizActive = false;
+  waitingForDoll = false;
+}
+    // Handle mobile touch (outside the quiz area)
+    document.addEventListener("touchstart", function(event) {
+      const quizArea = document.querySelector('.quiz-container-wrapper');
+      // Check if the touch is NOT within the quiz area AND doll is in 'waiting' state
+      if (!quizArea.contains(event.target) && window.dollController && window.dollController.getState() === 'waiting') {
+        window.dollController.playAction2();
+        if (window.gameController) {
+          window.gameController.showDollSeeingMessage();
+        }
+      }
+    });
+  </script>
+</body>
+<html>
